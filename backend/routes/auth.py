@@ -1,9 +1,13 @@
-from flask import Blueprint, redirect, request, session, jsonify, url_for
+from fastapi import APIRouter, Request
+from fastapi.responses import RedirectResponse, JSONResponse
 import google_auth_oauthlib.flow
 import requests
 import os
+from dotenv import load_dotenv
 
-auth_bp = Blueprint("auth", __name__)
+load_dotenv()
+
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -15,56 +19,60 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile",
 ]
 
-# Itt készítjük el a Google OAuth konfigurációt .env alapján
 CLIENT_CONFIG = {
     "web": {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": [REDIRECT_URI]
+        "redirect_uris": [REDIRECT_URI],
     }
 }
 
-# ============ ROUTES ============
+# Csak lokális fejlesztéshez – engedélyezett HTTP
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-@auth_bp.route("/")
+
+@router.get("/")
 def index():
-    return '<a href="/authorize">Bejelentkezés Google-lel</a>'
+    """Egyszerű link a login-hoz"""
+    return {"message": "Auth service running", "login_url": "/auth/authorize"}
 
-@auth_bp.route("/authorize")
+
+@router.get("/authorize")
 def authorize():
-    # OAuth2 flow inicializálása a környezeti adatokkal
+    """Elindítja a Google OAuth flow-t"""
     flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_CONFIG, SCOPES)
-    flow.redirect_uri = url_for("auth.oauth2callback", _external=True)
+    flow.redirect_uri = REDIRECT_URI
+
     auth_url, state = flow.authorization_url(
         access_type="offline", include_granted_scopes="true"
     )
-    session["state"] = state
-    return redirect(auth_url)
 
-@auth_bp.route("/oauth2callback")
-def oauth2callback():
-    state = session["state"]
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        CLIENT_CONFIG, SCOPES, state=state
-    )
-    flow.redirect_uri = url_for("auth.oauth2callback", _external=True)
+    # A FastAPI-ban session-kezelés alapból nincs, 
+    # ezért most csak visszaküldjük az auth URL-t
+    return RedirectResponse(auth_url)
 
-    # Token lekérése a Google-től
-    flow.fetch_token(authorization_response=request.url)
+
+@router.get("/oauth2callback")
+def oauth2callback(request: Request):
+    """A Google visszahívja ide a usert"""
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_CONFIG, SCOPES)
+    flow.redirect_uri = REDIRECT_URI
+
+    flow.fetch_token(authorization_response=str(request.url))
     credentials = flow.credentials
 
-    # Felhasználói adatok lekérése
+    # Lekérjük a userinfót
     userinfo = requests.get(
         "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {credentials.token}"}
+        headers={"Authorization": f"Bearer {credentials.token}"},
     ).json()
 
-    session["user"] = userinfo
-    return jsonify(userinfo)
+    return JSONResponse(userinfo)
 
-@auth_bp.route("/logout")
+
+@router.get("/logout")
 def logout():
-    session.clear()
-    return redirect("/")
+    """Egyszerű logout endpoint"""
+    return {"message": "Logged out (no real session used in this demo)"}
