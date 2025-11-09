@@ -1,35 +1,42 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Layout from './components/Layout';
+import Upload from './pages/Upload';
+import Record from './pages/Record';
+import Transcripts from './pages/Transcripts';
+import TranscriptDetail from './pages/TranscriptDetail';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// Protected Route wrapper
+function ProtectedRoute({ children }) {
+  const isAuthenticated = localStorage.getItem('isAuthenticated');
+  return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/dashboard/upload" />} />
+          <Route path="upload" element={<Upload />} />
+          <Route path="record" element={<Record />} />
+          <Route path="transcripts" element={<Transcripts />} />
+          <Route path="transcripts/:id" element={<TranscriptDetail />} />
+        </Route>
+
+        <Route path="/" element={<Navigate to="/login" />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
