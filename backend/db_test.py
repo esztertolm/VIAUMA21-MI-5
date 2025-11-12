@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 
-from db.mongodb import db
+from db.mongodb_setup import db
 
 app = FastAPI()
 
