@@ -22,6 +22,25 @@ def create_user(oauth_id: str, name:str) -> str:
     result = users_collection.insert_one(doc)
     return str(result.inserted_id)
 
+def update_user(user_id: str, oauth_id: str = None, name:str = None) -> bool:
+    update_fields = {}
+
+    if oauth_id is not None:
+        update_fields["oauth_id"] = oauth_id
+    
+    if name is not None:
+        update_fields["name"] = name
+
+    if not update_fields:
+        return False
+    
+    result = users_collection.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": update_fields}
+    )
+
+    return result.modified_count > 0
+
 def get_user_by_oauth(oauth_id: str) -> dict | None:
     doc = users_collection.find_one({"oauth_id": oauth_id})
 
@@ -53,6 +72,28 @@ def create_transcript(user_id: str, text: str, title: str, metadata: dict = None
     
     result = transcripts_collection.insert_one(doc)
     return str(result.inserted_id)
+
+def update_transcript(transcript_id: str, text: str = None, title: str = None, metadata: dict = None) -> bool:
+    update_fields = {}
+
+    if text is not None:
+        update_fields["text"] = text
+
+    if title is not None:
+        update_fields["title"] = title
+
+    if metadata is not None:
+        update_fields["metadata"] = metadata
+
+    if not update_fields:
+        return False
+    
+    result = transcripts_collection.update_one(
+        {"_id": ObjectId(transcript_id)},
+        {"$set": update_fields}
+    )
+
+    return result.modified_count > 0
 
 def get_transcripts_for_user(user_id: str, sort_mode: str = "descending") -> list[dict]:
     sort_mode = -1
