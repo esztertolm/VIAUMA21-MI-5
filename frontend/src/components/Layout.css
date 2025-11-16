@@ -1,0 +1,84 @@
+.layout {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.navbar {
+  background: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+}
+
+.nav-brand h2 {
+  color: #667eea;
+  margin: 0;
+  font-size: 24px;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-menu li a,
+.nav-menu li button {
+  padding: 10px 20px;
+  text-decoration: none;
+  color: #555;
+  border-radius: 5px;
+  transition: all 0.3s;
+  font-size: 14px;
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.nav-menu li a:hover,
+.nav-menu li button:hover {
+  background: #f0f0f0;
+  color: #667eea;
+}
+
+.nav-menu li a.active {
+  background: #667eea;
+  color: white;
+}
+
+.logout-btn {
+  font-weight: 500;
+}
+
+.main-content {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    height: auto;
+    padding: 20px;
+  }
+
+  .nav-menu {
+    flex-direction: column;
+    width: 100%;
+    margin-top: 20px;
+  }
+
+  .nav-menu li a,
+  .nav-menu li button {
+    width: 100%;
+    text-align: center;
+  }
+}
