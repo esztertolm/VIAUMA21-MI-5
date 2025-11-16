@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 # Import unified API router
-from api import router as api_router
+# from api import router as api_router
 
 
 app = FastAPI(
@@ -30,7 +30,7 @@ app = FastAPI(
 )
 
 # Include unified API routes
-app.include_router(api_router)
+# app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -128,7 +128,9 @@ async def assemblyai_transcribe(
                 else:
                     # Single language code
                     config_params["language_code"] = language_code
-            # If no language_code provided, AssemblyAI will auto-detect
+            else:
+                # Enable automatic language detection when no language specified
+                config_params["language_detection"] = True
 
             # config_params["language_code"] = "hu"
             if speaker_labels:

@@ -1,5 +1,5 @@
-import { useParams, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,73 +15,93 @@ import {
 
 function TranscriptDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const [transcript, setTranscript] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
-  const handleSaveNotes = () => {
-    setIsSavingNotes(true);
-    // Mock save
-    setTimeout(() => {
-      alert('Jegyzetek mentve!');
-      setIsSavingNotes(false);
-    }, 1000);
+  useEffect(() => {
+    loadTranscript();
+  }, [id]);
+
+  const loadTranscript = () => {
+    const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
+    const found = transcripts.find(t => t.id.toString() === id);
+    if (found) {
+      setTranscript(found);
+      setNotes(found.notes || '');
+    }
   };
 
-  // Mock transcript data with speaker differentiation
-  const mockTranscript = {
-    id: id,
-    title: 'Projekt megbeszélés',
-    date: '2025-11-08 14:30',
-    duration: '15:23',
-    speakers: 3,
-    conversation: [
-      {
-        speaker: 1,
-        timestamp: '00:00',
-        text: 'Sziasztok! Kezdjük el a mai projekt megbeszélést. Az első téma a frontend fejlesztés státusza.'
-      },
-      {
-        speaker: 2,
-        timestamp: '00:15',
-        text: 'Helló! A frontend oldalon jól haladunk. A React komponensek nagy része már kész van, most a routing-on dolgozunk.'
-      },
-      {
-        speaker: 3,
-        timestamp: '00:28',
-        text: 'Remek! És a backend API integrációval hogy állunk?'
-      },
-      {
-        speaker: 2,
-        timestamp: '00:35',
-        text: 'Még nem kezdtük el, mert várnunk kell, hogy a backend csapat befejezze az endpoint-okat. Talán jövő héten tudunk rá ráállni.'
-      },
-      {
-        speaker: 1,
-        timestamp: '00:50',
-        text: 'Értem. A backend csapat leadja ma délutánra az API dokumentációt, úgyhogy akkor tudtok majd dolgozni vele. Van még valami, amit meg kellene beszélnünk?'
-      },
-      {
-        speaker: 3,
-        timestamp: '01:05',
-        text: 'Igen, a design rendszerrel kapcsolatban van egy kérdésem. A color palette-t megváltoztattuk az utolsó meetingen?'
-      },
-      {
-        speaker: 1,
-        timestamp: '01:15',
-        text: 'Igen, a UI/UX csapat frissítette. Az új színeket már beküldték a Figma-ban. Érdemes megnézni.'
-      },
-      {
-        speaker: 2,
-        timestamp: '01:28',
-        text: 'Oké, akkor megnézem és frissítem a CSS változókat a projektben. Még valami?'
-      },
-      {
-        speaker: 1,
-        timestamp: '01:38',
-        text: 'Szerintem ennyi volt. Köszönöm mindenkinek! Jó munkát a héten!'
-      },
-    ]
+  const handleSaveNotes = () => {
+    setIsSavingNotes(true);
+    const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
+    const updated = transcripts.map(t => 
+      t.id.toString() === id ? { ...t, notes } : t
+    );
+    localStorage.setItem('transcripts', JSON.stringify(updated));
+    
+    setTimeout(() => {
+      setIsSavingNotes(false);
+    }, 500);
   };
+
+  const handleDownload = (format) => {
+    if (!transcript) return;
+    
+    let content = '';
+    let filename = '';
+    let mimeType = '';
+
+    if (format === 'TXT') {
+      if (transcript.utterances && transcript.utterances.length > 0) {
+        content = transcript.utterances.map(u => 
+          `[${formatTime(u.start)}] Speaker ${u.speaker}: ${u.text}`
+        ).join('\n\n');
+      } else {
+        content = transcript.text || '';
+      }
+      filename = `${transcript.title}-transcript.txt`;
+      mimeType = 'text/plain';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Biztosan törölni szeretné a(z) "${transcript.title}" átiratot?`)) {
+      const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
+      const updated = transcripts.filter(t => t.id.toString() !== id);
+      localStorage.setItem('transcripts', JSON.stringify(updated));
+      navigate('/dashboard/transcripts');
+    }
+  };
+
+  const formatTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  if (!transcript) {
+    return (
+      <div className="max-w-[900px] mx-auto">
+        <p>Átirat nem található...</p>
+        <Link to="/dashboard/transcripts">
+          <Button className="mt-4">Vissza az átiratokhoz</Button>
+        </Link>
+      </div>
+    );
+  }
 
   // Use Tailwind's chart colors for speaker differentiation
   const speakerColorClasses = [
@@ -100,26 +120,35 @@ function TranscriptDetail() {
         
         <Card>
           <CardHeader>
-            <CardTitle>{mockTranscript.title}</CardTitle>
+            <CardTitle>{transcript.title}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex gap-5 mb-5 flex-wrap">
-              <span className="text-muted-foreground text-sm">Dátum: {mockTranscript.date}</span>
-              <span className="text-muted-foreground text-sm">Időtartam: {mockTranscript.duration}</span>
-              <span className="text-muted-foreground text-sm">Beszélők: {mockTranscript.speakers}</span>
+              <span className="text-muted-foreground text-sm">Dátum: {transcript.date}</span>
+              <span className="text-muted-foreground text-sm">Időtartam: {transcript.duration}</span>
+              <span className="text-muted-foreground text-sm">Beszélők: {transcript.speakers}</span>
+              {transcript.confidence && (
+                <span className="text-muted-foreground text-sm">
+                  Megbízhatóság: {(transcript.confidence * 100).toFixed(1)}%
+                </span>
+              )}
             </div>
 
             <div className="flex gap-2.5 flex-wrap mt-4">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="default" size="sm">TXT</Button>
+                    <Button variant="default" size="sm" onClick={() => handleDownload('TXT')}>
+                      TXT Letöltés
+                    </Button>
                   </TooltipTrigger>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="destructive" size="sm">Törlés</Button>
+                    <Button variant="destructive" size="sm" onClick={handleDelete}>
+                      Törlés
+                    </Button>
                   </TooltipTrigger>
                 </Tooltip>
               </TooltipProvider>
@@ -138,43 +167,71 @@ function TranscriptDetail() {
             </TabsList>
 
             <TabsContent value="conversation" className="mt-6">
-              <div className="mb-7 pb-5 border-b-2 border-border">
-                <h3 className="font-semibold mb-3">Beszélők:</h3>
-                <div className="flex gap-4 flex-wrap">
-                  {Array.from({ length: mockTranscript.speakers }, (_, i) => (
-                    <Badge key={i} className={`gap-2 ${speakerColorClasses[i]}`}>
-                      <span>Résztvevő {i + 1}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <Separator className="my-6" />
-
-              <div className="flex flex-col gap-5">
-                {mockTranscript.conversation.map((entry, index) => (
-                  <div key={index} className="p-5 bg-muted/50 rounded-lg transition-colors hover:bg-muted/70">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Badge className={speakerColorClasses[entry.speaker - 1]}>
-                        Résztvevő {entry.speaker}
-                      </Badge>
-                      <span className="text-muted-foreground text-xs font-mono">{entry.timestamp}</span>
+              {transcript.utterances && transcript.utterances.length > 0 ? (
+                <>
+                  <div className="mb-7 pb-5 border-b-2 border-border">
+                    <h3 className="font-semibold mb-3">Beszélők:</h3>
+                    <div className="flex gap-4 flex-wrap">
+                      {Array.from({ length: transcript.speakers }, (_, i) => (
+                        <Badge key={i} className={`gap-2 ${speakerColorClasses[i]}`}>
+                          <span>Résztvevő {i + 1}</span>
+                        </Badge>
+                      ))}
                     </div>
-                    <p className="m-0 text-foreground leading-relaxed">{entry.text}</p>
                   </div>
-                ))}
-              </div>
+
+                  <Separator className="my-6" />
+
+                  <div className="flex flex-col gap-5">
+                    {transcript.utterances.map((entry, index) => {
+                      const speakerNum = typeof entry.speaker === 'string' 
+                        ? parseInt(entry.speaker.replace(/\D/g, '')) - 1 
+                        : entry.speaker - 1;
+                      
+                      return (
+                        <div key={index} className="p-5 bg-muted/50 rounded-lg transition-colors hover:bg-muted/70">
+                          <div className="flex items-center gap-3 mb-3">
+                            <Badge className={speakerColorClasses[speakerNum % speakerColorClasses.length]}>
+                              {entry.speaker}
+                            </Badge>
+                            <span className="text-muted-foreground text-xs font-mono">
+                              {formatTime(entry.start)}
+                            </span>
+                            {entry.confidence && (
+                              <span className="text-muted-foreground text-xs">
+                                ({(entry.confidence * 100).toFixed(0)}%)
+                              </span>
+                            )}
+                          </div>
+                          <p className="m-0 text-foreground leading-relaxed">{entry.text}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-10 text-muted-foreground">
+                  <p>Nem állnak rendelkezésre beszélők szerinti részletek.</p>
+                  <p className="mt-2">Nézze meg a "Nyers szöveg" fület a teljes átiratért.</p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="raw" className="mt-6">
               <Card>
                 <CardContent className="pt-6">
                   <div className="prose max-w-none">
-                    <p className="text-sm text-muted-foreground mb-4 font-mono whitespace-pre-line">
-                      {mockTranscript.conversation.map((entry, index) => 
-                        `[${entry.timestamp}] Résztvevő ${entry.speaker}: ${entry.text}`
-                      ).join('\n\n')}
-                    </p>
+                    {transcript.utterances && transcript.utterances.length > 0 ? (
+                      <p className="text-sm text-muted-foreground mb-4 font-mono whitespace-pre-line">
+                        {transcript.utterances.map((entry, index) => 
+                          `[${formatTime(entry.start)}] ${entry.speaker}: ${entry.text}`
+                        ).join('\n\n')}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {transcript.text || 'Nincs elérhető átirat.'}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -200,7 +257,7 @@ function TranscriptDetail() {
                     />
                     <Button 
                       onClick={handleSaveNotes} 
-                      disabled={isSavingNotes || !notes.trim()}
+                      disabled={isSavingNotes}
                     >
                       {isSavingNotes ? 'Mentés...' : 'Jegyzetek mentése'}
                     </Button>
