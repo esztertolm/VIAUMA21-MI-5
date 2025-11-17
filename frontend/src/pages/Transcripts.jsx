@@ -1,5 +1,5 @@
 ﻿import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,38 +22,83 @@ import {
 function Transcripts() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [transcriptToDelete, setTranscriptToDelete] = useState(null);
+  const [transcripts, setTranscripts] = useState([]);
+
+  useEffect(() => {
+    loadTranscripts();
+  }, []);
+
+  const loadTranscripts = () => {
+    const stored = localStorage.getItem('transcripts');
+    if (stored) {
+      setTranscripts(JSON.parse(stored));
+    }
+  };
+
   const handleDeleteClick = (transcript) => {
     setTranscriptToDelete(transcript);
     setDeleteDialogOpen(true);
   };
+
   const handleDeleteConfirm = () => {
-    alert(`"${transcriptToDelete.title}" törölve!`);
+    const updated = transcripts.filter(t => t.id !== transcriptToDelete.id);
+    localStorage.setItem('transcripts', JSON.stringify(updated));
+    setTranscripts(updated);
     setDeleteDialogOpen(false);
     setTranscriptToDelete(null);
   };
+
   const handleDownload = (transcript, format) => {
-    alert(`"${transcript.title}" letöltése ${format} formátumban...`);
+    let content = '';
+    let filename = '';
+    let mimeType = '';
+
+    if (format === 'TXT') {
+      if (transcript.utterances && transcript.utterances.length > 0) {
+        content = transcript.utterances.map(u => 
+          `[${formatTime(u.start)}] Speaker ${u.speaker}: ${u.text}`
+        ).join('\n\n');
+      } else {
+        content = transcript.text || '';
+      }
+      filename = `${transcript.title}-transcript.txt`;
+      mimeType = 'text/plain';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const mockTranscripts = [
-    { id: 1, title: 'Projekt megbeszélés', date: '2025-11-08 14:30', duration: '15:23', speakers: 3, status: 'completed' },
-    { id: 2, title: 'Ügyfél találkozó', date: '2025-11-07 10:15', duration: '28:45', speakers: 2, status: 'completed' },
-    { id: 3, title: 'Csapat standup', date: '2025-11-06 09:00', duration: '12:10', speakers: 4, status: 'completed' },
-    { id: 4, title: 'Interjú - Új jelölt', date: '2025-11-05 16:45', duration: '45:30', speakers: 2, status: 'processing' },
-  ];
+  const formatTime = (milliseconds) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
   return (
     <div className="max-w-[1200px] mx-auto">
       <div className="mb-10">
         <h1 className="text-foreground mb-2.5">Mentett átiratok</h1>
       </div>
-      {mockTranscripts.length === 0 ? (
+      {transcripts.length === 0 ? (
         <div className="bg-card p-20 rounded-lg text-center shadow-md">
-          <div className="text-8xl mb-5"></div>
+          <div className="text-8xl mb-5">🎙️</div>
           <h3 className="text-foreground mb-2.5">Még nincsenek mentett átiratok</h3>
+          <p className="text-muted-foreground mb-5">Töltsön fel egy hangfájlt az átirat készítéséhez</p>
+          <Link to="/dashboard/upload">
+            <Button>Feltöltés</Button>
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-          {mockTranscripts.map((transcript) => (
+          {transcripts.map((transcript) => (
             <Card key={transcript.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
