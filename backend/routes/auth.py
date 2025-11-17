@@ -4,6 +4,7 @@ import google_auth_oauthlib.flow
 import requests
 import os
 from dotenv import load_dotenv
+import db.repository as db
 
 load_dotenv()
 
@@ -76,3 +77,16 @@ def oauth2callback(request: Request):
 def logout():
     """Egyszerű logout endpoint"""
     return {"message": "Logged out (no real session used in this demo)"}
+
+@router.post("/register")
+async def register(request: Request):
+    """User regisztrálása."""
+    body = await request.json()
+    oauth_id = body.get("oauth_id")
+    name = body.get("name")
+
+    if not oauth_id or not name:
+        return JSONResponse({"error": "Missing oauth_id or name"}, status_code=400)
+    
+    user_id = db.create_user(oauth_id=oauth_id, name=name)
+    return {"user_id": user_id}
