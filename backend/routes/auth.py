@@ -4,6 +4,8 @@ import google_auth_oauthlib.flow
 import requests
 import os
 from dotenv import load_dotenv
+import json
+import base64
 
 load_dotenv()
 
@@ -12,6 +14,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 SCOPES = [
     "openid",
@@ -56,20 +59,25 @@ def authorize():
 
 @router.get("/oauth2callback")
 def oauth2callback(request: Request):
-    """A Google visszahívja ide a usert"""
+    """A Google visszadob ide, itt lekérjük a user info-t, majd átirányítjuk a frontend-re"""
     flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_CONFIG, SCOPES)
     flow.redirect_uri = REDIRECT_URI
 
+    # Lekérjük a tokent a Google-től
     flow.fetch_token(authorization_response=str(request.url))
     credentials = flow.credentials
 
-    # Lekérjük a userinfót
     userinfo = requests.get(
         "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {credentials.token}"},
+        headers={"Authorization": f"Bearer {credentials.token}"}
     ).json()
 
-    return JSONResponse(userinfo)
+    # Base64-eljük a user info-t, hogy átadhassuk query-ben
+    userinfo_b64 = base64.urlsafe_b64encode(json.dumps(userinfo).encode()).decode()
+
+    # Redirect a frontend callback-re
+    return RedirectResponse(f"{FRONTEND_URL}/oauth/callback?user={userinfo_b64}")
+
 
 
 @router.get("/logout")
