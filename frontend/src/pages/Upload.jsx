@@ -64,7 +64,7 @@ function Upload() {
         });
       }, 500);
 
-      const response = await fetch(`${API_BASE_URL}/assemblyai/transcribe`, {
+      const response = await fetch(`${API_BASE_URL}/transcription/assemblyai/transcribe`, {
         method: 'POST',
         body: formData,
       });
