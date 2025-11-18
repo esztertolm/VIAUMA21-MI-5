@@ -1,7 +1,6 @@
 from fastapi import FastAPI
-from routes.auth import router as auth_router
-from routes.transcribe import router as transcribe_router
-import uvicorn
+from .routes.auth import router as auth_router
+from .routes.transcribe import router as transcribe_router
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,5 +30,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(transcribe_router)
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+@app.get("/")
+def main():
+    return {"message": "Backend is running"}
