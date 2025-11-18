@@ -8,28 +8,24 @@ users_collection = db["users"]
 # Foreign key is oauthid
 transcripts_collection = db["transcripts"]
 
-def create_user(oauth_id: str, name:str) -> str:
+def create_user(oauth_id: str) -> str:
     existing = users_collection.find_one({"oauth_id": oauth_id})
     if existing:
         return str(existing["_id"])
 
     doc = {
         "oauth_id": oauth_id,
-        "name": name,
         "created_at": datetime.now()
     }
 
     result = users_collection.insert_one(doc)
     return str(result.inserted_id)
 
-def update_user(user_id: str, oauth_id: str = None, name:str = None) -> bool:
+def update_user(user_id: str, oauth_id: str = None) -> bool:
     update_fields = {}
 
     if oauth_id is not None:
         update_fields["oauth_id"] = oauth_id
-    
-    if name is not None:
-        update_fields["name"] = name
 
     if not update_fields:
         return False

@@ -9,6 +9,7 @@ function OAuthCallback() {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
+  const registerUser = async () => {
     try {
       const userB64 = searchParams.get('user');
       if (!userB64) throw new Error('User data missing');
@@ -16,25 +17,47 @@ function OAuthCallback() {
       const user = JSON.parse(atob(userB64));
       console.log('[OAuthCallback] user', user);
 
+      // 1) Backend hívás
+      const response = await fetch("http://127.0.0.1:8000/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          oauth_id: user.sub,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Registration failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Registration OK:", data);
+
+      // 2) LocalStorage beállítás
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('user', JSON.stringify({
         email: user.email,
         name: user.name,
         picture: user.picture,
+        oauth_id: user.sub,
         loginMethod: 'google'
       }));
 
       setStatus('success');
-
       setTimeout(() => navigate('/dashboard'), 1000);
+
     } catch (err) {
       console.error('OAuth callback error:', err);
       setError('Bejelentkezés sikertelen. Próbálja újra.\n' + (err.message || ''));
       setStatus('error');
-
       setTimeout(() => navigate('/login'), 3000);
     }
-  }, [navigate, searchParams]);
+  };
+
+  registerUser();
+}, [navigate, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-purple-600 p-5">

@@ -4,6 +4,8 @@ import google_auth_oauthlib.flow
 import requests
 import os
 from dotenv import load_dotenv
+import db.repository as db
+import db.models as dbmodels
 import json
 import base64
 
@@ -84,3 +86,12 @@ def oauth2callback(request: Request):
 def logout():
     """Egyszerű logout endpoint"""
     return {"message": "Logged out (no real session used in this demo)"}
+
+@router.post("/register")
+async def register(request_data: dbmodels.UserRegisterRequest):
+    """User regisztrálása."""
+    user_id = db.create_user(
+        oauth_id=request_data.oauth_id,
+    )
+
+    return {"user_id": user_id}
