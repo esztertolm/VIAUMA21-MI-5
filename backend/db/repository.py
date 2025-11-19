@@ -127,7 +127,7 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
 
     return result.modified_count > 0
 
-def get_transcripts_for_user(user_id: str, sort_mode: str = "descending") -> list[dict] | None:
+def get_user_transcripts(user_id: str, sort_mode: str = "descending") -> list[dict] | None:
     user_id = _safe_objectid(user_id)
     if not user_id:
         return None

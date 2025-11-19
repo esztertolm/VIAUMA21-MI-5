@@ -17,6 +17,9 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request
 
+import db.models as dbmodels
+import db.repository as db
+
 
 # Import unified API router
 # from api import router as api_router
@@ -461,3 +464,43 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+@router.get("/get_user_transcripts")
+def get_user_transcripts(
+    user_id: str,
+    sort_mode: str
+):
+    
+    transcriptions = db.get_transcripts_for_user(
+        user_id=user_id,
+        sort_mode=sort_mode
+    )
+
+    if transcriptions is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid user ID: {user_id}."
+        )
+
+    return transcriptions
+
+@router.get("/get_user_transcript")
+def get_user_transcript(
+    user_id: str,
+    transcript_id: str
+):
+    transcription = db.get_transcript_by_id(transcript_id=transcript_id)
+
+    if transcription is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid transcription ID: {transcript_id}."
+        )
+
+    if transcription["user_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: transcript does not belong to user."
+        )
+    
+    return transcription
