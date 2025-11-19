@@ -1,7 +1,7 @@
 from datetime import datetime
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
-from db.mongodb_setup import db
+from .mongodb_setup import db
 
 def _safe_objectid(id_str: str) -> ObjectId | None:
     try:

@@ -28,7 +28,7 @@ router = APIRouter(prefix="/transcription", tags=["Transcribe"])
 
 def _get_assemblyai_api_key() -> str:
     """Get AssemblyAI API key from environment variable."""
-    api_key = os.environ.get("ASSEMBLYAI_API_KEY", "e42f49410a28406a9933c152cd42b7aa")
+    api_key = os.environ.get("ASSEMBLYAI_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=500, detail="ASSEMBLYAI_API_KEY not set in environment"

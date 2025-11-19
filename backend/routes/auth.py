@@ -4,8 +4,8 @@ import google_auth_oauthlib.flow
 import requests
 import os
 from dotenv import load_dotenv
-import db.repository as db
-import db.models as dbmodels
+from ..db import repository as db
+from ..db import models as dbmodels
 import json
 import base64
 
