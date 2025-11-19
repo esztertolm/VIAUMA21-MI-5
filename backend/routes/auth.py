@@ -88,7 +88,7 @@ def logout():
     return {"message": "Logged out (no real session used in this demo)"}
 
 @router.post("/register")
-async def register(request_data: dbmodels.UserRegisterRequest):
+def register(request_data: dbmodels.UserRegisterRequest):
     """User regisztrálása."""
     user_id = db.create_user(
         oauth_id=request_data.oauth_id,
