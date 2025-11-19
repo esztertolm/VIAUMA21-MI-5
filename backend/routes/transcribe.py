@@ -1,14 +1,12 @@
 import os
 import asyncio
-from typing import Optional, List
+from typing import Optional
 import json
-import base64
 
 import httpx
 import websockets
 import assemblyai as aai
 from fastapi import (
-    FastAPI,
     File,
     UploadFile,
     HTTPException,
@@ -16,29 +14,16 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request
+
 
 # Import unified API router
 # from api import router as api_router
 
 
-app = FastAPI(
-    title="Szoftverarchitektúrák transcription API",
-    description="Speech-to-text transcription with speaker diarization using AssemblyAI",
-    version="1.0.0",
-)
+router = APIRouter(prefix="/transcription", tags=["Transcribe"])
 
-# Include unified API routes
-# app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 def _get_assemblyai_api_key() -> str:
@@ -51,12 +36,12 @@ def _get_assemblyai_api_key() -> str:
     return api_key
 
 
-@app.get("/health")
+@router.get("/health")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/assemblyai/test-token")
+@router.get("/assemblyai/test-token")
 async def test_assemblyai_token():
     """Test endpoint to verify AssemblyAI token generation."""
     try:
@@ -86,7 +71,7 @@ async def test_assemblyai_token():
         return {"success": False, "error": str(e)}
 
 
-@app.post("/assemblyai/transcribe")
+@router.post("/assemblyai/transcribe")
 async def assemblyai_transcribe(
     audio: UploadFile = File(...),
     speaker_labels: bool = Form(True),
@@ -239,7 +224,7 @@ async def assemblyai_transcribe(
         )
 
 
-@app.websocket("/assemblyai/transcribe/live")
+@router.websocket("/assemblyai/transcribe/live")
 async def assemblyai_transcribe_live(websocket: WebSocket):
     await websocket.accept()
     assemblyai_ws = None
