@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
-
+from backend.utils.logger import logger
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
@@ -13,4 +13,5 @@ if not MONGO_URI:
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
 
-print(f"Connected to MongoDB database: {DB_NAME}")
+
+logger.info(f"Connected to MongoDB database: {DB_NAME}")
