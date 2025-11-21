@@ -1,7 +1,9 @@
 from datetime import datetime
 from bson.objectid import ObjectId
 from bson.errors import InvalidId
-from db.mongodb_setup import db
+from backend.db.mongodb_setup import db
+
+from backend.utils.logger import logger
 
 def _safe_objectid(id_str: str) -> ObjectId | None:
     try:
@@ -26,6 +28,7 @@ def create_user(oauth_id: str) -> str:
     }
 
     result = users_collection.insert_one(doc)
+    logger.info("User created.")
     return str(result.inserted_id)
 
 def update_user(user_id: str, oauth_id: str = None) -> bool:
@@ -45,6 +48,9 @@ def update_user(user_id: str, oauth_id: str = None) -> bool:
         {"_id": user_id},
         {"$set": update_fields}
     )
+
+    logger.info("User updated.")
+
 
     return result.modified_count > 0
 
@@ -74,6 +80,9 @@ def delete_user(user_id: str) -> bool:
     user_result = users_collection.delete_one({"_id": user_id})
     _ = transcripts_collection.delete_many({"user_id": user_id})
 
+    logger.info("User deleted.")
+
+
     return user_result.deleted_count > 0
 
 def create_transcript(user_id: str, text: str, title: str, language: str, participants: list[str], duration: str) -> str | None:
@@ -92,6 +101,9 @@ def create_transcript(user_id: str, text: str, title: str, language: str, partic
     }
     
     result = transcripts_collection.insert_one(doc)
+
+    logger.info("Transcription is stored for the user.")
+
     return str(result.inserted_id)
 
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
@@ -125,6 +137,8 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
         {"$set": update_fields}
     )
 
+    logger.info(f"Transcription updated: {transcript_id}.")
+
     return result.modified_count > 0
 
 def get_transcripts_for_user(user_id: str, sort_mode: str = "descending") -> list[dict] | None:
@@ -138,6 +152,8 @@ def get_transcripts_for_user(user_id: str, sort_mode: str = "descending") -> lis
 
     docs = transcripts_collection.find({"user_id": user_id}).sort("created_at", sort_value)
 
+    logger.info("Transcriptions are collected for the user.")
+
     return [{**doc, "_id": str(doc["_id"]), "user_id": str(doc["user_id"])} for doc in docs]
 
 def get_transcript_by_id(transcript_id: str) -> dict | None:
@@ -150,6 +166,8 @@ def get_transcript_by_id(transcript_id: str) -> dict | None:
     if doc:
         doc["_id"] = str(doc["_id"])
         doc["user_id"] = str(doc["user_id"])
+
+
     return doc
 
 def delete_transcript(transcript_id: str) -> bool:
@@ -158,5 +176,7 @@ def delete_transcript(transcript_id: str) -> bool:
         return False
     
     transcript_result = transcripts_collection.delete_one({"_id": transcript_id})
+
+    logger.info(f"Transcription deleted: {transcript_id}.")
 
     return transcript_result.deleted_count > 0
