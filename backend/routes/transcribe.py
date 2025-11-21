@@ -17,8 +17,8 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request
 
-import db.models as dbmodels
-import db.repository as db
+import backend.db.models as dbmodels
+import backend.db.repository as db
 from backend.utils.logger import logger
 
 
