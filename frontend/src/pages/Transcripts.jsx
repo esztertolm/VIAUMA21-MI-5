@@ -57,12 +57,41 @@ function Transcripts() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    const updated = transcripts.filter(t => t.id !== transcriptToDelete.id);
-    localStorage.setItem('transcripts', JSON.stringify(updated));
-    setTranscripts(updated);
-    setDeleteDialogOpen(false);
-    setTranscriptToDelete(null);
+  const handleDeleteConfirm = async () => {
+    if (!transcriptToDelete) return;
+
+    try {
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.db_id;
+
+      if(!userId) {
+        console.error("No user ID found in localStorage");
+        return
+      }
+
+      const res = await fetch(
+        `http://127.0.0.1:8000/delete_user_transcript/${transcriptToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to delete transcript");
+      }
+
+      const data = await res.json();
+      console.log("Deleted transcript:", data.deleted_transcript_id);
+
+      setTranscripts(prev => prev.filter(t => t.id !== transcriptToDelete.id));
+
+      setDeleteDialogOpen(false);
+      setTranscriptToDelete(null);
+
+    } catch (err) {
+      console.error("Error deleting transcript", err);
+    }
   };
 
   const handleDownload = (transcript, format) => {
