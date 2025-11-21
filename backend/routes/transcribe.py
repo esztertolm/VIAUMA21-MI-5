@@ -484,7 +484,7 @@ def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
 @router.get("/get_user_transcripts")
 def get_user_transcripts(
     user_id: str,
-    sort_mode: str
+    sort_mode: str = "descending"
 ):
     
     transcriptions = db.get_transcripts_for_user(

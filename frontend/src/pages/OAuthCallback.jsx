@@ -42,7 +42,8 @@ function OAuthCallback() {
         name: user.name,
         picture: user.picture,
         oauth_id: user.sub,
-        loginMethod: 'google'
+        loginMethod: 'google',
+        db_id: data.user_id
       }));
 
       setStatus('success');

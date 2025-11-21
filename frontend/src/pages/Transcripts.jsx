@@ -28,10 +28,27 @@ function Transcripts() {
     loadTranscripts();
   }, []);
 
-  const loadTranscripts = () => {
-    const stored = localStorage.getItem('transcripts');
-    if (stored) {
-      setTranscripts(JSON.parse(stored));
+  const loadTranscripts = async () => {
+    try{
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.db_id;
+
+      if (!userId) {
+        console.error("No user ID found in localStorage");
+        return;
+      }
+
+      const res = await fetch(`http://127.0.0.1:8000/auth/get_user_transcripts?user_id=${userId}`);
+    
+      if (!res.ok){
+        throw new Error("Failed to load transcripts");
+      }
+
+      const data = await res.json();
+      setTranscripts(data);
+    
+    } catch (err) {
+      console.error("Error loading transcripts:", err);
     }
   };
 
