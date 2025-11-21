@@ -4,6 +4,10 @@ from typing import Optional
 class UserRegisterRequest(BaseModel):
     oauth_id: str
 
-class UserTranscriptionsRequest(BaseModel):
+class UserSaveTranscriptRequest(BaseModel):
     user_id: str
-    sort_mode: Optional[str] = "descending"
+    text: str
+    title: str
+    language: str
+    participants: list[str]
+    duration: str

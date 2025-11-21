@@ -465,6 +465,19 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
         except:
             pass
 
+@router.post("/save_user_transcript")
+def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
+    transcript_id = db.create_transcript(
+        user_id=request_data.user_id,
+        text=request_data.text,
+        title=request_data.title,
+        language=request_data.language,
+        participants=request_data.participants,
+        duration=request_data.duration
+    )
+
+    return {"transcript_id": transcript_id}
+
 @router.get("/get_user_transcripts")
 def get_user_transcripts(
     user_id: str,
