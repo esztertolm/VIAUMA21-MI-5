@@ -484,7 +484,7 @@ def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
 @router.get("/get_user_transcripts")
 def get_user_transcripts(
     user_id: str,
-    sort_mode: str
+    sort_mode: str = "descending"
 ):
     
     transcriptions = db.get_transcripts_for_user(
@@ -520,3 +520,15 @@ def get_user_transcript(
         )
     
     return transcription
+
+@router.delete("/delete_user_transcript/{transcript_id}")
+def delete_user_transcript(transcript_id: str):
+    success = db.delete_transcript(transcript_id=transcript_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Transcript {transcript_id} could not be deleted.\nPossible reason: invalid transcript ID"
+        )
+    
+    return {"success": True, "deleted_transcript_id": transcript_id}
