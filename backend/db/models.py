@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import Field, BaseModel
 from typing import Optional
 
 class UserRegisterRequest(BaseModel):
@@ -9,5 +9,7 @@ class UserSaveTranscriptRequest(BaseModel):
     text: str
     title: str
     language: str
-    participants: list[str]
+    speakers: int
     duration: str
+    utterances: Optional[list[dict]] = Field(default_factory=list)
+    confidence: Optional[float] = None

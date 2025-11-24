@@ -85,7 +85,14 @@ def delete_user(user_id: str) -> bool:
 
     return user_result.deleted_count > 0
 
-def create_transcript(user_id: str, text: str, title: str, language: str, participants: list[str], duration: str) -> str | None:
+def create_transcript(user_id: str,
+                      text: str,
+                      title: str,
+                      language: str,
+                      speakers: int,
+                      duration: str,
+                      utterances,
+                      confidence) -> str | None:
     user_id = _safe_objectid(user_id)
     if not user_id:
         return None
@@ -95,9 +102,11 @@ def create_transcript(user_id: str, text: str, title: str, language: str, partic
         "text": text,
         "title": title,
         "language": language,
-        "participants": participants,
+        "speakers": speakers,
         "duration": duration,
-        "created_at": datetime.now()
+        "created_at": datetime.now(),
+        "utterances": utterances,
+        "confidence": confidence
     }
     
     result = transcripts_collection.insert_one(doc)
@@ -107,7 +116,9 @@ def create_transcript(user_id: str, text: str, title: str, language: str, partic
     return str(result.inserted_id)
 
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
-                      language: str = None, participants: list[str] = None, duration: str = None) -> bool:
+                      language: str = None, speakers: int = None,
+                      duration: str = None, utterances =  None,
+                      confidence = None) -> bool:
     transcript_id = _safe_objectid(transcript_id)
     if not transcript_id:
         return False
@@ -123,11 +134,17 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
     if language is not None:
         update_fields["language"] = language
 
-    if participants is not None:
-        update_fields["participants"] = participants
+    if speakers is not None:
+        update_fields["speakers"] = speakers
 
     if duration is not None:
         update_fields["duration"] = duration
+
+    if utterances is not None:
+        update_fields["utterances"] = utterances
+
+    if confidence is not None:
+        update_fields["confidence"] = confidence
 
     if not update_fields:
         return False

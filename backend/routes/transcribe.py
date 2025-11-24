@@ -475,8 +475,10 @@ def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
         text=request_data.text,
         title=request_data.title,
         language=request_data.language,
-        participants=request_data.participants,
-        duration=request_data.duration
+        speakers=request_data.speakers,
+        duration=request_data.duration,
+        utterances=request_data.utterances,
+        confidence=request_data.confidence
     )
 
     return {"transcript_id": transcript_id}
