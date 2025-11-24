@@ -19,31 +19,74 @@ function TranscriptDetail() {
   const [transcript, setTranscript] = useState(null);
   const [notes, setNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadTranscript();
   }, [id]);
 
-  const loadTranscript = () => {
-    const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
-    const found = transcripts.find(t => t.id.toString() === id);
-    if (found) {
-      setTranscript(found);
-      setNotes(found.notes || '');
+  const loadTranscript = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const user = JSON.parse(localStorage.getItem('user'));
+      const userId = user?.db_id;
+
+      if (!userId) {
+        setError('No user ID found');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/transcription/get_user_transcript?user_id=${userId}&transcript_id=${id}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to load transcript');
+      }
+
+      const data = await response.json();
+      setTranscript(data);
+      setNotes(data.notes || '');
+    } catch (err) {
+      console.error('Error loading transcript:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
     setIsSavingNotes(true);
-    const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
-    const updated = transcripts.map(t => 
-      t.id.toString() === id ? { ...t, notes } : t
-    );
-    localStorage.setItem('transcripts', JSON.stringify(updated));
-    
-    setTimeout(() => {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/transcription/update_user_transcript`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transcript_id: id,
+            notes: notes,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to save notes');
+      }
+
+      setTranscript(prev => ({ ...prev, notes }));
+    } catch (err) {
+      console.error('Error saving notes:', err);
+      alert('Hiba a jegyzetek mentése során');
+    } finally {
       setIsSavingNotes(false);
-    }, 500);
+    }
   };
 
   const handleDownload = (format) => {
@@ -76,12 +119,25 @@ function TranscriptDetail() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm(`Biztosan törölni szeretné a(z) "${transcript.title}" átiratot?`)) {
-      const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
-      const updated = transcripts.filter(t => t.id.toString() !== id);
-      localStorage.setItem('transcripts', JSON.stringify(updated));
-      navigate('/dashboard/transcripts');
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/transcription/delete_user_transcript/${id}`,
+          {
+            method: 'DELETE',
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to delete transcript');
+        }
+
+        navigate('/dashboard/transcripts');
+      } catch (err) {
+        console.error('Error deleting transcript:', err);
+        alert('Hiba az átirat törlése során');
+      }
     }
   };
 
@@ -92,7 +148,15 @@ function TranscriptDetail() {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (!transcript) {
+  if (loading) {
+    return (
+      <div className="max-w-[900px] mx-auto">
+        <p>Betöltés...</p>
+      </div>
+    );
+  }
+
+  if (error || !transcript) {
     return (
       <div className="max-w-[900px] mx-auto">
         <p>Átirat nem található...</p>
@@ -124,7 +188,9 @@ function TranscriptDetail() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-5 mb-5 flex-wrap">
-              <span className="text-muted-foreground text-sm">Dátum: {transcript.date}</span>
+              <span className="text-muted-foreground text-sm">
+                Dátum: {transcript.created_at ? new Date(transcript.created_at).toLocaleString('hu-HU') : 'N/A'}
+              </span>
               <span className="text-muted-foreground text-sm">Időtartam: {transcript.duration}</span>
               <span className="text-muted-foreground text-sm">Beszélők: {transcript.speakers}</span>
               {transcript.confidence && (

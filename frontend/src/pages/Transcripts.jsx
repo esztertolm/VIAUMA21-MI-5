@@ -38,7 +38,7 @@ function Transcripts() {
         return;
       }
 
-      const res = await fetch(`http://127.0.0.1:8000/auth/get_user_transcripts?user_id=${userId}`);
+      const res = await fetch(`http://127.0.0.1:8000/transcription/get_user_transcripts?user_id=${userId}`);
     
       if (!res.ok){
         throw new Error("Failed to load transcripts");
@@ -71,7 +71,7 @@ function Transcripts() {
       }
 
       const res = await fetch(
-        `http://127.0.0.1:8000/delete_user_transcript/${transcriptToDelete.id}`,
+        `http://127.0.0.1:8000/transcription/delete_user_transcript/${transcriptToDelete._id}`,
         {
           method: "DELETE",
         }
@@ -84,7 +84,7 @@ function Transcripts() {
       const data = await res.json();
       console.log("Deleted transcript:", data.deleted_transcript_id);
 
-      setTranscripts(prev => prev.filter(t => t.id !== transcriptToDelete.id));
+      setTranscripts(prev => prev.filter(t => t._id !== transcriptToDelete._id));
 
       setDeleteDialogOpen(false);
       setTranscriptToDelete(null);
@@ -145,7 +145,7 @@ function Transcripts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
           {transcripts.map((transcript) => (
-            <Card key={transcript.id}>
+            <Card key={transcript._id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{transcript.title}</CardTitle>
@@ -172,7 +172,7 @@ function Transcripts() {
               <CardFooter className="flex gap-2 flex-wrap">
                 {transcript.status === 'completed' ? (
                   <>
-                    <Link to={`/dashboard/transcripts/${transcript.id}`} className="flex-1">
+                    <Link to={`/dashboard/transcripts/${transcript._id}`} className="flex-1">
                       <Button variant="default" size="sm" className="w-full">Megtekintés</Button>
                     </Link>
                     <DropdownMenu>

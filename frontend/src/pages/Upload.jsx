@@ -90,7 +90,8 @@ function Upload() {
         speakers: result.utterances ? new Set(result.utterances.map(u => u.speaker)).size : 0,
         duration: result.audio_duration ? formatDuration(result.audio_duration) : "N/A",
         utterances: result.utterances || [],
-        confidence: result.confidence
+        confidence: result.confidence,
+        status: result.status,
       };
 
       const saveResponse = await fetch(`${API_BASE_URL}/transcription/save_user_transcript`, {

@@ -6,6 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
+            "envFile": "${workspaceFolder}/.env.local",
             "args": [
                 "backend.main:app",
                 "--host", "127.0.0.1",
