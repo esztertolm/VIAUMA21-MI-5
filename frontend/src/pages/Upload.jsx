@@ -79,27 +79,37 @@ function Upload() {
 
       const result = await response.json();
       setTranscriptResult(result);
-      
-      // Store transcript in localStorage (temporary solution until backend has storage)
-      const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
-      const newTranscript = {
-        id: result.id || Date.now(),
-        title: selectedFile.name,
-        date: new Date().toLocaleString('hu-HU'),
-        duration: result.audio_duration ? formatDuration(result.audio_duration) : 'N/A',
-        speakers: result.utterances ? new Set(result.utterances.map(u => u.speaker)).size : 0,
-        status: 'completed',
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.db_id;
+      const saveBody = {
+        user_id: userId,
         text: result.text,
+        title: selectedFile.name,
+        language_code: result.language_code || "unknown",
+        speakers: result.utterances ? new Set(result.utterances.map(u => u.speaker)).size : 0,
+        duration: result.audio_duration ? formatDuration(result.audio_duration) : "N/A",
         utterances: result.utterances || [],
-        language_code: result.language_code,
-        confidence: result.confidence,
+        confidence: result.confidence
       };
-      transcripts.push(newTranscript);
-      localStorage.setItem('transcripts', JSON.stringify(transcripts));
+
+      const saveResponse = await fetch(`${API_BASE_URL}/transcription/save_user_transcript`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(saveBody),
+      });
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json();
+        throw new Error(errorData.detail || "Failed to save transcript to DB");
+      }
+
+      const dbResult = await saveResponse.json();
+      const transcriptId = dbResult.transcript_id;
 
       // Redirect to transcript detail after 2 seconds
       setTimeout(() => {
-        navigate(`/dashboard/transcripts/${newTranscript.id}`);
+        navigate(`/dashboard/transcripts/${transcriptId}`);
       }, 2000);
 
     } catch (err) {
