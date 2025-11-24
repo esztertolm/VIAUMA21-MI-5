@@ -88,7 +88,7 @@ def delete_user(user_id: str) -> bool:
 def create_transcript(user_id: str,
                       text: str,
                       title: str,
-                      language: str,
+                      language_code: str,
                       speakers: int,
                       duration: str,
                       utterances,
@@ -101,7 +101,7 @@ def create_transcript(user_id: str,
         "user_id": user_id,
         "text": text,
         "title": title,
-        "language": language,
+        "language_code": language_code,
         "speakers": speakers,
         "duration": duration,
         "created_at": datetime.now(),
@@ -116,7 +116,7 @@ def create_transcript(user_id: str,
     return str(result.inserted_id)
 
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
-                      language: str = None, speakers: int = None,
+                      language_code: str = None, speakers: int = None,
                       duration: str = None, utterances =  None,
                       confidence = None) -> bool:
     transcript_id = _safe_objectid(transcript_id)
@@ -131,8 +131,8 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
     if title is not None:
         update_fields["title"] = title
 
-    if language is not None:
-        update_fields["language"] = language
+    if language_code is not None:
+        update_fields["language_code"] = language_code
 
     if speakers is not None:
         update_fields["speakers"] = speakers

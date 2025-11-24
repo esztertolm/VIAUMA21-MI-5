@@ -474,7 +474,7 @@ def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
         user_id=request_data.user_id,
         text=request_data.text,
         title=request_data.title,
-        language=request_data.language,
+        language_code=request_data.language_code,
         speakers=request_data.speakers,
         duration=request_data.duration,
         utterances=request_data.utterances,
