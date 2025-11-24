@@ -85,7 +85,15 @@ def delete_user(user_id: str) -> bool:
 
     return user_result.deleted_count > 0
 
-def create_transcript(user_id: str, text: str, title: str, language: str, participants: list[str], duration: str) -> str | None:
+def create_transcript(user_id: str,
+                      text: str,
+                      title: str,
+                      language_code: str,
+                      speakers: int,
+                      duration: str,
+                      status: str,
+                      utterances,
+                      confidence: float) -> str | None:
     user_id = _safe_objectid(user_id)
     if not user_id:
         return None
@@ -94,10 +102,14 @@ def create_transcript(user_id: str, text: str, title: str, language: str, partic
         "user_id": user_id,
         "text": text,
         "title": title,
-        "language": language,
-        "participants": participants,
+        "language_code": language_code,
+        "speakers": speakers,
         "duration": duration,
-        "created_at": datetime.now()
+        "status": status,
+        "created_at": datetime.now(),
+        "utterances": utterances,
+        "confidence": confidence,
+        "notes": ""
     }
     
     result = transcripts_collection.insert_one(doc)
@@ -107,7 +119,9 @@ def create_transcript(user_id: str, text: str, title: str, language: str, partic
     return str(result.inserted_id)
 
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
-                      language: str = None, participants: list[str] = None, duration: str = None) -> bool:
+                      language_code: str = None, speakers: int = None,
+                      duration: str = None, status: str = None, utterances =  None,
+                      confidence = None, notes = None) -> bool:
     transcript_id = _safe_objectid(transcript_id)
     if not transcript_id:
         return False
@@ -120,14 +134,26 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
     if title is not None:
         update_fields["title"] = title
 
-    if language is not None:
-        update_fields["language"] = language
+    if language_code is not None:
+        update_fields["language_code"] = language_code
 
-    if participants is not None:
-        update_fields["participants"] = participants
+    if speakers is not None:
+        update_fields["speakers"] = speakers
 
     if duration is not None:
         update_fields["duration"] = duration
+    
+    if status is not None:
+        update_fields["status"] = status
+
+    if utterances is not None:
+        update_fields["utterances"] = utterances
+
+    if confidence is not None:
+        update_fields["confidence"] = confidence
+
+    if notes is not None:
+        update_fields["notes"] = notes
 
     if not update_fields:
         return False

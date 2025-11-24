@@ -28,10 +28,27 @@ function Transcripts() {
     loadTranscripts();
   }, []);
 
-  const loadTranscripts = () => {
-    const stored = localStorage.getItem('transcripts');
-    if (stored) {
-      setTranscripts(JSON.parse(stored));
+  const loadTranscripts = async () => {
+    try{
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.db_id;
+
+      if (!userId) {
+        console.error("No user ID found in localStorage");
+        return;
+      }
+
+      const res = await fetch(`http://127.0.0.1:8000/transcription/get_user_transcripts?user_id=${userId}`);
+    
+      if (!res.ok){
+        throw new Error("Failed to load transcripts");
+      }
+
+      const data = await res.json();
+      setTranscripts(data);
+    
+    } catch (err) {
+      console.error("Error loading transcripts:", err);
     }
   };
 
@@ -40,12 +57,41 @@ function Transcripts() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    const updated = transcripts.filter(t => t.id !== transcriptToDelete.id);
-    localStorage.setItem('transcripts', JSON.stringify(updated));
-    setTranscripts(updated);
-    setDeleteDialogOpen(false);
-    setTranscriptToDelete(null);
+  const handleDeleteConfirm = async () => {
+    if (!transcriptToDelete) return;
+
+    try {
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const userId = user?.db_id;
+
+      if(!userId) {
+        console.error("No user ID found in localStorage");
+        return
+      }
+
+      const res = await fetch(
+        `http://127.0.0.1:8000/transcription/delete_user_transcript/${transcriptToDelete._id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Failed to delete transcript");
+      }
+
+      const data = await res.json();
+      console.log("Deleted transcript:", data.deleted_transcript_id);
+
+      setTranscripts(prev => prev.filter(t => t._id !== transcriptToDelete._id));
+
+      setDeleteDialogOpen(false);
+      setTranscriptToDelete(null);
+
+    } catch (err) {
+      console.error("Error deleting transcript", err);
+    }
   };
 
   const handleDownload = (transcript, format) => {
@@ -99,7 +145,7 @@ function Transcripts() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
           {transcripts.map((transcript) => (
-            <Card key={transcript.id}>
+            <Card key={transcript._id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{transcript.title}</CardTitle>
@@ -126,7 +172,7 @@ function Transcripts() {
               <CardFooter className="flex gap-2 flex-wrap">
                 {transcript.status === 'completed' ? (
                   <>
-                    <Link to={`/dashboard/transcripts/${transcript.id}`} className="flex-1">
+                    <Link to={`/dashboard/transcripts/${transcript._id}`} className="flex-1">
                       <Button variant="default" size="sm" className="w-full">Megtekintés</Button>
                     </Link>
                     <DropdownMenu>
