@@ -32,7 +32,7 @@ router = APIRouter(prefix="/transcription", tags=["Transcribe"])
 
 def _get_assemblyai_api_key() -> str:
     """Get AssemblyAI API key from environment variable."""
-    api_key = os.environ.get("ASSEMBLYAI_API_KEY", "e42f49410a28406a9933c152cd42b7aa")
+    api_key = os.environ.get("ASSEMBLYAI_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=500, detail="ASSEMBLYAI_API_KEY not set in environment"
@@ -235,6 +235,7 @@ async def assemblyai_transcribe(
 async def assemblyai_transcribe_live(websocket: WebSocket):
     await websocket.accept()
     assemblyai_ws = None
+    is_shutting_down = False  # Flag to coordinate shutdown
 
     try:
         # Get API key
@@ -275,8 +276,14 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
         # Task to forward messages from AssemblyAI to client
         async def forward_from_assemblyai():
+            nonlocal is_shutting_down
             try:
                 async for message in assemblyai_ws:
+                    # Check if we're shutting down before processing
+                    if is_shutting_down:
+                        print(f"[Backend] Shutdown in progress, skipping message")
+                        break
+                        
                     data = json.loads(message)
                     msg_type = data.get("type")
                     logger.info(f"Received: {msg_type}")
@@ -334,7 +341,13 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
                             logger.info(f"Forwarding transcript to client: '{turn_data['text']}'")
                             await websocket.send_json(turn_data)
-                            logger.info("Transcript sent successfully")
+                            print(f"[Backend] Transcript sent successfully")
+                        except (WebSocketDisconnect, RuntimeError) as e:
+                            if "close message has been sent" in str(e) or isinstance(e, WebSocketDisconnect):
+                                print(f"[Backend] Client disconnected, stopping forward")
+                                break
+                            else:
+                                raise
                         except Exception as e:
                             logger.error(f"Error forwarding transcript: {e}")
                             import traceback
@@ -387,6 +400,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
         # Task to forward audio and control messages from client to AssemblyAI
         async def forward_to_assemblyai():
+            nonlocal is_shutting_down
             try:
                 chunk_count = 0
                 while True:
@@ -408,6 +422,9 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                         msg_type = msg.get("type")
 
                         if msg_type == "terminate":
+                            # Set shutdown flag first
+                            is_shutting_down = True
+                            print(f"[Backend] Termination requested, shutting down")
                             # Send termination message
                             await assemblyai_ws.send(json.dumps({"type": "Terminate"}))
                             break
@@ -429,13 +446,15 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
             except WebSocketDisconnect:
                 # Client disconnected, terminate session
-                logger.info("Client disconnected")
+                is_shutting_down = True
+                print(f"[Backend] Client disconnected")
                 try:
                     await assemblyai_ws.send(json.dumps({"type": "Terminate"}))
                 except:
                     pass
             except Exception as e:
-                logger.error(f"Forward to AssemblyAI error: {e}")
+                is_shutting_down = True
+                print(f"[Backend] Forward to AssemblyAI error: {e}")
                 import traceback
 
                 traceback.print_exc()
