@@ -477,6 +477,7 @@ def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
         language_code=request_data.language_code,
         speakers=request_data.speakers,
         duration=request_data.duration,
+        status=request_data.status,
         utterances=request_data.utterances,
         confidence=request_data.confidence
     )
@@ -531,6 +532,7 @@ def update_user_transcript(request_data: dbmodels.UserUpdateTranscriptRequest):
         language_code=request_data.language_code,
         speakers=request_data.speakers,
         duration=request_data.duration,
+        status=request_data.status,
         utterances=request_data.utterances,
         confidence=request_data.confidence,
         notes=request_data.notes

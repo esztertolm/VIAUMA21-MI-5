@@ -91,8 +91,9 @@ def create_transcript(user_id: str,
                       language_code: str,
                       speakers: int,
                       duration: str,
+                      status: str,
                       utterances,
-                      confidence) -> str | None:
+                      confidence: float) -> str | None:
     user_id = _safe_objectid(user_id)
     if not user_id:
         return None
@@ -104,6 +105,7 @@ def create_transcript(user_id: str,
         "language_code": language_code,
         "speakers": speakers,
         "duration": duration,
+        "status": status,
         "created_at": datetime.now(),
         "utterances": utterances,
         "confidence": confidence,
@@ -118,7 +120,7 @@ def create_transcript(user_id: str,
 
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
                       language_code: str = None, speakers: int = None,
-                      duration: str = None, utterances =  None,
+                      duration: str = None, status: str = None, utterances =  None,
                       confidence = None, notes = None) -> bool:
     transcript_id = _safe_objectid(transcript_id)
     if not transcript_id:
@@ -140,6 +142,9 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
 
     if duration is not None:
         update_fields["duration"] = duration
+    
+    if status is not None:
+        update_fields["status"] = status
 
     if utterances is not None:
         update_fields["utterances"] = utterances
