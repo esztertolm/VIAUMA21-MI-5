@@ -14,6 +14,7 @@ function Record() {
   const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [partialTranscript, setPartialTranscript] = useState('');
+  const [currentTurnOrder, setCurrentTurnOrder] = useState(-1);
   const [error, setError] = useState(null);
   const [sessionStatus, setSessionStatus] = useState('disconnected'); // disconnected, connecting, connected
   const [savedTranscriptId, setSavedTranscriptId] = useState(null);
@@ -53,14 +54,23 @@ function Record() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[Frontend] Received:', data.type);
+          console.log('[Frontend] Received:', data.type, data.turn_order);
 
           if (data.type === 'session_begins') {
             console.log('[Frontend] Session started:', data.session_id);
           } else if (data.type === 'partial_transcript') {
+            // For partial transcripts, just update the partial text
             setPartialTranscript(data.text);
           } else if (data.type === 'final_transcript') {
-            setTranscript((prev) => prev + (prev ? ' ' : '') + data.text);
+            // When turn ends, append to main transcript and clear partial
+            const turnOrder = data.turn_order ?? 0;
+            
+            // Only append if this is a new turn or first turn
+            if (turnOrder !== currentTurnOrder && data.text.trim()) {
+              setTranscript((prev) => prev + (prev ? ' ' : '') + data.text);
+              setCurrentTurnOrder(turnOrder);
+            }
+            
             setPartialTranscript('');
           } else if (data.type === 'session_terminated') {
             console.log('[Frontend] Session terminated');
@@ -177,6 +187,7 @@ function Record() {
     setTranscript('');
     setPartialTranscript('');
     setSavedTranscriptId(null);
+    setCurrentTurnOrder(-1);  // Reset turn tracking
     
     try {
       // Initialize audio capture first
@@ -236,7 +247,7 @@ function Record() {
     stopAudioCapture();
     
     // Save to localStorage if there's a transcript
-    if (transcript) {
+    if (transcript.trim()) {
       console.log('Final transcript:', transcript);
       
       // Get existing transcripts from localStorage
@@ -265,7 +276,12 @@ function Record() {
       
       console.log('Transcript saved to localStorage');
       setSavedTranscriptId(newTranscript.id);
+    } else {
+      console.log('No transcript to save');
     }
+    
+    // Reset timer after saving (so duration is captured correctly)
+    setRecordingTime(0);
   };
 
   const handleViewTranscript = () => {

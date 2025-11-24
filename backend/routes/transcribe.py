@@ -228,6 +228,7 @@ async def assemblyai_transcribe(
 async def assemblyai_transcribe_live(websocket: WebSocket):
     await websocket.accept()
     assemblyai_ws = None
+    is_shutting_down = False  # Flag to coordinate shutdown
 
     try:
         # Get API key
@@ -269,8 +270,14 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
         # Task to forward messages from AssemblyAI to client
         async def forward_from_assemblyai():
+            nonlocal is_shutting_down
             try:
                 async for message in assemblyai_ws:
+                    # Check if we're shutting down before processing
+                    if is_shutting_down:
+                        print(f"[Backend] Shutdown in progress, skipping message")
+                        break
+                        
                     data = json.loads(message)
                     msg_type = data.get("type")
                     print(f"[AssemblyAI] Received: {msg_type}")  # Debug log
@@ -330,6 +337,12 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                             )
                             await websocket.send_json(turn_data)
                             print(f"[Backend] Transcript sent successfully")
+                        except (WebSocketDisconnect, RuntimeError) as e:
+                            if "close message has been sent" in str(e) or isinstance(e, WebSocketDisconnect):
+                                print(f"[Backend] Client disconnected, stopping forward")
+                                break
+                            else:
+                                raise
                         except Exception as e:
                             print(f"[Backend] Error forwarding transcript: {e}")
                             import traceback
@@ -381,6 +394,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
         # Task to forward audio and control messages from client to AssemblyAI
         async def forward_to_assemblyai():
+            nonlocal is_shutting_down
             try:
                 chunk_count = 0
                 while True:
@@ -402,6 +416,9 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                         msg_type = msg.get("type")
 
                         if msg_type == "terminate":
+                            # Set shutdown flag first
+                            is_shutting_down = True
+                            print(f"[Backend] Termination requested, shutting down")
                             # Send termination message
                             await assemblyai_ws.send(json.dumps({"type": "Terminate"}))
                             break
@@ -423,12 +440,14 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
             except WebSocketDisconnect:
                 # Client disconnected, terminate session
+                is_shutting_down = True
                 print(f"[Backend] Client disconnected")
                 try:
                     await assemblyai_ws.send(json.dumps({"type": "Terminate"}))
                 except:
                     pass
             except Exception as e:
+                is_shutting_down = True
                 print(f"[Backend] Forward to AssemblyAI error: {e}")
                 import traceback
 
