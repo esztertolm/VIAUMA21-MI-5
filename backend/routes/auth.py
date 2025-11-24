@@ -4,10 +4,11 @@ import google_auth_oauthlib.flow
 import requests
 import os
 from dotenv import load_dotenv
-from ..db import repository as db
-from ..db import models as dbmodels
+import backend.db.repository as db
+import backend.db.models as dbmodels
 import json
 import base64
+from backend.utils.logger import logger
 
 load_dotenv()
 
@@ -47,6 +48,7 @@ def index():
 @router.get("/authorize")
 def authorize():
     """Elindítja a Google OAuth flow-t"""
+    logger.info("Authentication started.")
     flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_CONFIG, SCOPES)
     flow.redirect_uri = REDIRECT_URI
 
@@ -76,7 +78,7 @@ def oauth2callback(request: Request):
 
     # Base64-eljük a user info-t, hogy átadhassuk query-ben
     userinfo_b64 = base64.urlsafe_b64encode(json.dumps(userinfo).encode()).decode()
-
+    logger.info("Userinfo is directed to frontend.")
     # Redirect a frontend callback-re
     return RedirectResponse(f"{FRONTEND_URL}/oauth/callback?user={userinfo_b64}")
 
@@ -85,13 +87,15 @@ def oauth2callback(request: Request):
 @router.get("/logout")
 def logout():
     """Egyszerű logout endpoint"""
+    logger.info("User logged out.")
     return {"message": "Logged out (no real session used in this demo)"}
 
 @router.post("/register")
-async def register(request_data: dbmodels.UserRegisterRequest):
+def register(request_data: dbmodels.UserRegisterRequest):
     """User regisztrálása."""
     user_id = db.create_user(
         oauth_id=request_data.oauth_id,
     )
+    logger.info("User logged in.")
 
     return {"user_id": user_id}

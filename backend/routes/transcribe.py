@@ -17,6 +17,10 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request
 
+import backend.db.models as dbmodels
+import backend.db.repository as db
+from backend.utils.logger import logger
+
 
 # Import unified API router
 # from api import router as api_router
@@ -141,6 +145,7 @@ async def assemblyai_transcribe(
 
             # Check for errors
             if transcript.status == aai.TranscriptStatus.error:
+                logger.error("Transcription failed.")
                 raise HTTPException(
                     status_code=500, detail=f"Transcription failed: {transcript.error}"
                 )
@@ -207,6 +212,7 @@ async def assemblyai_transcribe(
                 response_data["audio_duration"] = transcript.audio_duration
 
             print(response_data)
+            logger.info("Transcription succeeded.")
             return JSONResponse(content=response_data)
 
         finally:
@@ -219,6 +225,7 @@ async def assemblyai_transcribe(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"AssemblyAI transcription error: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"AssemblyAI transcription error: {str(e)}"
         )
@@ -251,15 +258,14 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
             token = token_data["token"]
 
         ws_url = f"wss://streaming.assemblyai.com/v3/ws?token={token}&sample_rate=16000&encoding=pcm_s16le&format_turns=true"
-        print(f"[Backend] Connecting to AssemblyAI WebSocket...")
-        print(
-            f"[Backend] URL: wss://streaming.assemblyai.com/v3/ws?token=***&sample_rate=16000&encoding=pcm_s16le"
-        )
+        logger.info("Connecting to AssemblyAI WebSocket...")
+        logger.info("URL: wss://streaming.assemblyai.com/v3/ws?token=***&sample_rate=16000&encoding=pcm_s16le")
         try:
             assemblyai_ws = await websockets.connect(ws_url)
-            print(f"[Backend] Connected to AssemblyAI successfully")
+            logger.info("Connected to AssemblyAI successfully.")
         except Exception as e:
-            print(f"[Backend] Failed to connect to AssemblyAI: {e}")
+            logger.error(f"Failed to connect to AssemblyAI: {e}")
+
             await websocket.send_json(
                 {
                     "type": "error",
@@ -280,7 +286,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                         
                     data = json.loads(message)
                     msg_type = data.get("type")
-                    print(f"[AssemblyAI] Received: {msg_type}")  # Debug log
+                    logger.info(f"Received: {msg_type}")
 
                     # Session begins
                     if msg_type == "Begin":
@@ -294,9 +300,9 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
                     # Turn (transcript)
                     elif msg_type == "Turn":
-                        print(
-                            f"[AssemblyAI] Turn data: {json.dumps(data, indent=2)}"
-                        )  # Debug: see full Turn structure
+                         # Debug: see full Turn structure
+                        logger.info(f"[AssemblyAI] Turn data: {json.dumps(data, indent=2)}")
+
 
                         try:
                             turn_data = {
@@ -332,9 +338,8 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                             if "end_of_turn_confidence" in data:
                                 turn_data["confidence"] = data["end_of_turn_confidence"]
 
-                            print(
-                                f"[Backend] Forwarding transcript to client: '{turn_data['text']}'"
-                            )
+
+                            logger.info(f"Forwarding transcript to client: '{turn_data['text']}'")
                             await websocket.send_json(turn_data)
                             print(f"[Backend] Transcript sent successfully")
                         except (WebSocketDisconnect, RuntimeError) as e:
@@ -344,14 +349,14 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                             else:
                                 raise
                         except Exception as e:
-                            print(f"[Backend] Error forwarding transcript: {e}")
+                            logger.error(f"Error forwarding transcript: {e}")
                             import traceback
 
                             traceback.print_exc()
 
                     # Session termination
                     elif msg_type == "Termination":
-                        print(f"[AssemblyAI] Session terminated")
+                        logger.info("[AssemblyAI] Session terminated")
                         await websocket.send_json(
                             {
                                 "type": "session_terminated",
@@ -365,7 +370,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
                     # Error
                     elif msg_type == "Error":
-                        print(f"[AssemblyAI] Error received: {data.get('error')}")
+                        logger.info(f"[AssemblyAI] Error received: {data.get('error')}")
                         await websocket.send_json(
                             {
                                 "type": "error",
@@ -374,11 +379,12 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                         )
                         break
 
-                print(f"[AssemblyAI] Message loop ended normally")
+                logger.info("[AssemblyAI] Message loop ended normally")
             except websockets.exceptions.ConnectionClosed as e:
-                print(f"[AssemblyAI] Connection closed: {e}")
+                logger.info(f"[AssemblyAI] Connection closed: {e}")
+
             except Exception as e:
-                print(f"[AssemblyAI] Receive error: {e}")
+                logger.error(f"[AssemblyAI] Receive error: {e}")
                 import traceback
 
                 traceback.print_exc()
@@ -405,7 +411,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
                         # AssemblyAI v3 expects binary audio data (not base64)
                         chunk_count += 1
                         if chunk_count % 20 == 0:  # Log every 20 chunks
-                            print(f"[Backend] Sent {chunk_count} chunks to AssemblyAI")
+                            logger.info(f"Sent {chunk_count} chunks to AssemblyAI")
 
                         # Send raw PCM audio bytes directly
                         await assemblyai_ws.send(data["bytes"])
@@ -460,7 +466,7 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
 
     except Exception as e:
         error_msg = f"AssemblyAI live transcription error: {str(e)}"
-        print(f"[Backend] Error: {error_msg}")
+        logger.error(f"Error: {error_msg}")
         import traceback
 
         traceback.print_exc()
@@ -480,3 +486,56 @@ async def assemblyai_transcribe_live(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+@router.post("/save_user_transcript")
+def save_user_transcript(request_data: dbmodels.UserSaveTranscriptRequest):
+    transcript_id = db.create_transcript(
+        user_id=request_data.user_id,
+        text=request_data.text,
+        title=request_data.title,
+        language=request_data.language,
+        participants=request_data.participants,
+        duration=request_data.duration
+    )
+
+    return {"transcript_id": transcript_id}
+
+@router.get("/get_user_transcripts")
+def get_user_transcripts(
+    user_id: str,
+    sort_mode: str
+):
+    
+    transcriptions = db.get_transcripts_for_user(
+        user_id=user_id,
+        sort_mode=sort_mode
+    )
+
+    if transcriptions is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid user ID: {user_id}."
+        )
+
+    return transcriptions
+
+@router.get("/get_user_transcript")
+def get_user_transcript(
+    user_id: str,
+    transcript_id: str
+):
+    transcription = db.get_transcript_by_id(transcript_id=transcript_id)
+
+    if transcription is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid transcription ID: {transcript_id}."
+        )
+
+    if transcription["user_id"] != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: transcript does not belong to user."
+        )
+    
+    return transcription
