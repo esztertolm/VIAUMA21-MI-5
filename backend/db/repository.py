@@ -106,7 +106,8 @@ def create_transcript(user_id: str,
         "duration": duration,
         "created_at": datetime.now(),
         "utterances": utterances,
-        "confidence": confidence
+        "confidence": confidence,
+        "notes": ""
     }
     
     result = transcripts_collection.insert_one(doc)
@@ -118,7 +119,7 @@ def create_transcript(user_id: str,
 def update_transcript(transcript_id: str, text: str = None, title: str = None,
                       language_code: str = None, speakers: int = None,
                       duration: str = None, utterances =  None,
-                      confidence = None) -> bool:
+                      confidence = None, notes = None) -> bool:
     transcript_id = _safe_objectid(transcript_id)
     if not transcript_id:
         return False
@@ -145,6 +146,9 @@ def update_transcript(transcript_id: str, text: str = None, title: str = None,
 
     if confidence is not None:
         update_fields["confidence"] = confidence
+
+    if notes is not None:
+        update_fields["notes"] = notes
 
     if not update_fields:
         return False

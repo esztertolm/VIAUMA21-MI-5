@@ -523,6 +523,27 @@ def get_user_transcript(
     
     return transcription
 
+@router.post("/update_user_transcript")
+def update_user_transcript(request_data: dbmodels.UserUpdateTranscriptRequest):
+    success = db.update_transcript(
+        transcript_id=request_data.transcript_id,
+        text=request_data.text,
+        language_code=request_data.language_code,
+        speakers=request_data.speakers,
+        duration=request_data.duration,
+        utterances=request_data.utterances,
+        confidence=request_data.confidence,
+        notes=request_data.notes
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Transcript could not be updated. Possibly invalid ID or no fields provided."
+        )
+    
+    return {"success": success, "transcript_id": request_data.transcript_id}
+
 @router.delete("/delete_user_transcript/{transcript_id}")
 def delete_user_transcript(transcript_id: str):
     success = db.delete_transcript(transcript_id=transcript_id)
