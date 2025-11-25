@@ -63,7 +63,17 @@ def authorize():
 
 @router.get("/oauth2callback")
 def oauth2callback(request: Request):
-    """A Google visszadob ide, itt lekérjük a user info-t, majd átirányítjuk a frontend-re"""
+    params = request.query_params
+
+    # Ha a user "Cancel" gombot nyomott:
+    if "error" in params:
+        error = params.get("error")
+        logger.warning(f"OAuth2 error from Google: {error}")
+        # Vissza a frontendre hiba kóddal
+        return RedirectResponse(
+            f"{FRONTEND_URL}/oauth/callback?error={error}"
+        )
+
     flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_CONFIG, SCOPES)
     flow.redirect_uri = REDIRECT_URI
 
@@ -86,13 +96,11 @@ def oauth2callback(request: Request):
 
 @router.get("/logout")
 def logout():
-    """Egyszerű logout endpoint"""
     logger.info("User logged out.")
     return {"message": "Logged out (no real session used in this demo)"}
 
 @router.post("/register")
 def register(request_data: dbmodels.UserRegisterRequest):
-    """User regisztrálása."""
     user_id = db.create_user(
         oauth_id=request_data.oauth_id,
     )
