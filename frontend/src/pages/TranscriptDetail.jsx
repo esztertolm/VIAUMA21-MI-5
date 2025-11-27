@@ -250,15 +250,28 @@ function TranscriptDetail() {
 
                   <div className="flex flex-col gap-5">
                     {transcript.utterances.map((entry, index) => {
-                      const speakerNum = typeof entry.speaker === 'string' 
-                        ? parseInt(entry.speaker.replace(/\D/g, '')) - 1 
-                        : entry.speaker - 1;
-                      
+                      let speakerNum = 0;
+                      let speakerLabel = '';
+                      if (typeof entry.speaker === 'string') {
+                        if (/^[A-Z]$/.test(entry.speaker)) {
+                          speakerNum = entry.speaker.charCodeAt(0) - 'A'.charCodeAt(0);
+                          speakerLabel = `Résztvevő ${speakerNum + 1}`;
+                        } else if (/^Résztvevő \d+$/.test(entry.speaker)) {
+                          speakerNum = parseInt(entry.speaker.replace(/\D/g, '')) - 1;
+                          speakerLabel = entry.speaker;
+                        } else {
+                          speakerNum = parseInt(entry.speaker.replace(/\D/g, '')) - 1;
+                          speakerLabel = `Résztvevő ${speakerNum + 1}`;
+                        }
+                      } else {
+                        speakerNum = entry.speaker - 1;
+                        speakerLabel = `Résztvevő ${speakerNum + 1}`;
+                      }
                       return (
                         <div key={index} className="p-5 bg-muted/50 rounded-lg transition-colors hover:bg-muted/70">
                           <div className="flex items-center gap-3 mb-3">
                             <Badge className={speakerColorClasses[speakerNum % speakerColorClasses.length]}>
-                              {entry.speaker}
+                              {speakerLabel}
                             </Badge>
                             <span className="text-muted-foreground text-xs font-mono">
                               {formatTime(entry.start)}

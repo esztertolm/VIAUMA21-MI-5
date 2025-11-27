@@ -14,10 +14,10 @@ function Record() {
   const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [partialTranscript, setPartialTranscript] = useState('');
-  const [currentTurnOrder, setCurrentTurnOrder] = useState(-1);
   const [error, setError] = useState(null);
-  const [sessionStatus, setSessionStatus] = useState('disconnected'); // disconnected, connecting, connected
+  const [sessionStatus, setSessionStatus] = useState('disconnected');
   const [savedTranscriptId, setSavedTranscriptId] = useState(null);
+  const turnsRef = useRef([]);
   
   const wsRef = useRef(null);
   const mediaStreamRef = useRef(null);
@@ -59,18 +59,40 @@ function Record() {
           if (data.type === 'session_begins') {
             console.log('[Frontend] Session started:', data.session_id);
           } else if (data.type === 'partial_transcript') {
-            // For partial transcripts, just update the partial text
+            // Show the current turn's partial text (replaces previous partial for same turn)
             setPartialTranscript(data.text);
           } else if (data.type === 'final_transcript') {
-            // When turn ends, append to main transcript and clear partial
-            const turnOrder = data.turn_order ?? 0;
-            
-            // Only append if this is a new turn or first turn
-            if (turnOrder !== currentTurnOrder && data.text.trim()) {
-              setTranscript((prev) => prev + (prev ? ' ' : '') + data.text);
-              setCurrentTurnOrder(turnOrder);
+            // Only process if this is a formatted turn
+            // If turn_is_formatted exists and is false, skip it (wait for formatted version)
+            if (data.turn_is_formatted === false) {
+              console.log('[Frontend] Skipping unformatted final, waiting for formatted version');
+              return;
             }
             
+            // When turn ends with formatting, save it to our turns array
+            if (data.text.trim()) {
+              const turnOrder = data.turn_order ?? turnsRef.current.length;
+              
+              // Check if we already have this turn (to prevent duplicates)
+              const existingTurnIndex = turnsRef.current.findIndex(
+                t => t.turn_order === turnOrder
+              );
+              
+              if (existingTurnIndex === -1) {
+                // New turn, add it
+                turnsRef.current.push({
+                  turn_order: turnOrder,
+                  text: data.text
+                });
+                
+                // Update display with all turns
+                const fullText = turnsRef.current
+                  .sort((a, b) => a.turn_order - b.turn_order)
+                  .map(t => t.text)
+                  .join(' ');
+                setTranscript(fullText);
+              }
+            }
             setPartialTranscript('');
           } else if (data.type === 'session_terminated') {
             console.log('[Frontend] Session terminated');
@@ -102,7 +124,6 @@ function Record() {
 
   const initializeAudioCapture = async () => {
     try {
-      // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           channelCount: 1,
@@ -113,7 +134,6 @@ function Record() {
       });
       mediaStreamRef.current = stream;
 
-      // Create audio context
       const audioContext = new (window.AudioContext || window.webkitAudioContext)({
         sampleRate: 16000
       });
@@ -121,7 +141,6 @@ function Record() {
 
       const source = audioContext.createMediaStreamSource(stream);
       
-      // Create ScriptProcessor for audio processing
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
       processorRef.current = processor;
 
@@ -129,14 +148,12 @@ function Record() {
         if (!isPaused && wsRef.current?.readyState === WebSocket.OPEN) {
           const inputData = e.inputBuffer.getChannelData(0);
           
-          // Convert Float32Array to Int16Array (PCM_S16LE)
           const pcmData = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
             const s = Math.max(-1, Math.min(1, inputData[i]));
             pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
           
-          // Send raw PCM bytes to WebSocket
           wsRef.current.send(pcmData.buffer);
         }
       };
@@ -153,19 +170,16 @@ function Record() {
   };
 
   const stopAudioCapture = () => {
-    // Stop processor
     if (processorRef.current) {
       processorRef.current.disconnect();
       processorRef.current = null;
     }
 
-    // Close audio context
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
 
-    // Stop media stream
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
@@ -187,10 +201,9 @@ function Record() {
     setTranscript('');
     setPartialTranscript('');
     setSavedTranscriptId(null);
-    setCurrentTurnOrder(-1);  // Reset turn tracking
+    turnsRef.current = [];
     
     try {
-      // Initialize audio capture first
       const audioInitialized = await initializeAudioCapture();
       
       if (!audioInitialized) {
@@ -198,11 +211,9 @@ function Record() {
         return;
       }
 
-      // Then initialize WebSocket connection
       initializeWebSocket();
       
-      // Wait for WebSocket to connect by checking wsRef directly
-      const maxWaitTime = 5000; // 5 seconds
+      const maxWaitTime = 5000;
       const startTime = Date.now();
       
       while ((!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) && Date.now() - startTime < maxWaitTime) {
@@ -236,51 +247,53 @@ function Record() {
     }
   };
 
-  const handleStopRecording = () => {
+  const handleStopRecording = async () => {
     setIsRecording(false);
     setIsPaused(false);
-    
-    // Close WebSocket
     closeWebSocket();
-    
-    // Stop audio capture
     stopAudioCapture();
-    
-    // Save to localStorage if there's a transcript
-    if (transcript.trim()) {
-      console.log('Final transcript:', transcript);
-      
-      // Get existing transcripts from localStorage
-      const transcripts = JSON.parse(localStorage.getItem('transcripts') || '[]');
-      
-      // Create new transcript entry
-      const newTranscript = {
-        id: Date.now(),
-        title: `Live Recording ${new Date().toLocaleString('hu-HU')}`,
-        date: new Date().toLocaleString('hu-HU'),
-        duration: formatTime(recordingTime),
-        speakers: 0, // Live transcription doesn't have speaker labels
-        status: 'completed',
-        text: transcript,
-        utterances: [],
-        language_code: null,
-        confidence: null,
-        type: 'live'
-      };
-      
-      // Add to transcripts array
-      transcripts.push(newTranscript);
-      
-      // Save back to localStorage
-      localStorage.setItem('transcripts', JSON.stringify(transcripts));
-      
-      console.log('Transcript saved to localStorage');
-      setSavedTranscriptId(newTranscript.id);
+
+    // Use the accumulated transcript from all completed turns
+    const finalText = turnsRef.current
+      .sort((a, b) => a.turn_order - b.turn_order)
+      .map(t => t.text)
+      .join(' ');
+
+    if (finalText.trim()) {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const userId = user?.db_id;
+        if (!userId) throw new Error("No user ID found in localStorage");
+        const saveBody = {
+          user_id: userId,
+          text: finalText,
+          title: `Live Recording ${new Date().toLocaleString('hu-HU')}`,
+          language_code: '',
+          speakers: 0,
+          duration: formatTime(recordingTime),
+          status: 'completed'
+        };
+        const saveResponse = await fetch(`${API_BASE_URL}/transcription/save_user_transcript`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(saveBody),
+        });
+        if (!saveResponse.ok) {
+          const errorData = await saveResponse.json();
+          throw new Error(errorData.detail || "Failed to save transcript to DB");
+        }
+        const dbResult = await saveResponse.json();
+        const transcriptId = dbResult.transcript_id;
+        setSavedTranscriptId(transcriptId);
+        setTimeout(() => {
+          navigate(`/dashboard/transcripts/${transcriptId}`);
+        }, 2000);
+      } catch (err) {
+        setError(err.message || 'Failed to save transcript');
+      }
     } else {
-      console.log('No transcript to save');
+      setSavedTranscriptId(null);
     }
-    
-    // Reset timer after saving (so duration is captured correctly)
     setRecordingTime(0);
   };
 
@@ -290,7 +303,6 @@ function Record() {
     }
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       closeWebSocket();
@@ -375,7 +387,6 @@ function Record() {
         </div>
       </div>
 
-      {/* Live Transcript Display */}
       {(isRecording || transcript) && (
         <Card className="mt-6">
           <CardContent className="pt-6">
