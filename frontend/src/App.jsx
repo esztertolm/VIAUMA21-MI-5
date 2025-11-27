@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import OAuthCallback from './pages/OAuthCallback';
 import Layout from './components/Layout';
 import Upload from './pages/Upload';
@@ -20,7 +19,6 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/oauth/callback" element={<OAuthCallback />} />
         
         <Route path="/dashboard" element={
